@@ -1,1 +1,22 @@
+# Background: 
+
+The business environment of this new century has undertaken several
+changes, creating more and more complexity and uncertainty. In this changing environment characterising the global economy, companies face strong competitive pressure
+to do things better, faster and cheaper. Therefore, assessing the performance of organisations has always been of interest to management teams and researchers. The most
+common tools used for this purpose are: BSC (Balance Scorecard), BEM (Business Excellence Model), KPI (Key Performance Indicators), Six Sigma, Capability Maturity
+Model and DEA (Data Envelopment Analysis). The objective of this work was to evaluate
+the performance of cameroonian companies, in order to help them face their multiple
+challenges.
+
+# Methods: 
+
+This was a study based on a panel of 600 companies observed over 03
+periods: 2006, 2009, 2016. As tools, we used stochastic frontier analysis to determine the
+level of production efficiency as a function of input use; data was analysed in R version
+4.2.3; description of the variables was done using mean +/- standard deviation(SD) or
+median(Inter-quartile Range "IQR") where appropriated; frequencies and proportions
+were used to describe qualitative data; in order to highlight the associated factors with
+the good performance in terms of sales volume (dependent variable), we used panel data
+estimators; performance indicators are used as a reference to identify gaps in business
+process management.
 
