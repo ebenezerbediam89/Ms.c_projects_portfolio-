@@ -14,9 +14,5 @@ Software(s):
 • GAMS, GEMPACK
 
 # Proj#02:Introduction to macroeconomic modelling
-Objective(s)
-1. Learn useful reflexes for modelling
-contemporary macroeconomic modelling (objectives of models, choice of methods, choice of variables and software, etc.);
-2. introduce two major groups of models used in central banks and international institutions: VARs and DSGEs (Dynamic Stochastic General Equilibrium);
-3. to address questions useful for future research.
+Objective(s): Learn useful reflexes for modelling contemporary macroeconomic modelling (objectives of models, choice of methods, choice of variables and software, etc.); introduce two major groups of models used in central banks and international institutions: VARs and DSGEs (Dynamic Stochastic General Equilibrium); to address questions useful for future research.
 
