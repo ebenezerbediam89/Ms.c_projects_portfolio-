@@ -1,0 +1,836 @@
+---
+title: "STUDY OF CAMEROONIAN FIRMS' PERFORMANCE (Using panel data)"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+This dissertation examines the performance of Cameroonian firms for data
+collected in Cameroon over three periods: 2006, 2009, and 2016 by the
+World Bank. The different stages of this work are:
+
+-   General data base exploration
+-   Database preparation
+-   Descriptive Statistics
+-   Stochastic frontier analysis
+-   Stepwise elimination model
+-   Selected model
+-   Bivarial analysis of selected variables
+-   Estimation
+-   Use statistical tests to choose the best model
+
+# Load data and useful librairies
+
+```{r}
+# Here we load useful libraries and data
+
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(foreign)
+library(plm)
+#DATA <- Data
+Data <- read_excel("D:/BEDIAM/CETIC/M2/MEMOIRE/Donnees+Documents_Prof/Bediam_Nonbo_Ebenezer/DATA.0.xlsx")
+
+```
+
+# General exploration of our data base.
+
+```{r}
+# Data size
+
+dim(Data)
+```
+
+```{r}
+#The most profitable activities in Cameroon in descending order
+
+D22<-arrange(Data, desc(d22))   
+D22<-select(D22, d1a1x, d22)
+#View(D22)
+head(D22)
+```
+
+```{r}
+# Material inputs and suppliers of domestic origin in descending order
+
+D12a <- arrange(Data,desc (d12a)) 
+D12a  <- select( D12a,d1a1x,d12a)
+head(D12a)
+#view(D12a)
+```
+
+```{r}
+# Material inputs and suppliers of foreign origin in descending order
+
+D12b <- arrange(Data,desc (d12b)) 
+D12b <- select( D12b,d1a1x,d12b)
+head(D12b)
+#view(D12a)
+```
+
+```{r}
+# Example of companies not renting their premises
+
+G6a <- arrange(Data,desc(g6a)) 
+G6a <- select(G6a,d1a1x,g6a)
+head(G6a)
+```
+
+```{r}
+# Example of companies renting their premises
+
+G6b <- arrange(Data,desc(g6b)) 
+G6b <- select(G6b,d1a1x,g6b)
+head(G6b)
+```
+
+We observe that only industrial production units with material inputs
+and supplies of domestic origin build their infrastructures while
+production units with material inputs and supplies of foreign origin
+start on the basis of renting infrastructures.
+
+# Database preparation
+
+```{r}
+# Here we select and rename useful variables
+
+perform <- Data %>% select(panelid, year, a0,cap,d2, a3a, b7, b8, c22b, d1a3, d3a, d3c, d12a, d12b, e1, f1, f2, g6a, g6b, g5a, k3a, k3e, k3bc,
+                           n5a, n5b, n2a,n2e,l1)
+perform <- perform %>% rename(Panelid=panelid, Year=year,secteur=a0,an_capital=cap, an_sales=d2, region=a3a, mv_experience=b7, Certification=b8, web_site=c22b,
+                              main_product=d1a3,
+                              national_sales=d3a, export_sales=d3c, d_material_supplies=d12a, f_material_supplies=d12b,
+                              main_market=e1, firm_size=f1, working_hours=f2, building_owned=g6a, building_rented=g6b,
+                              selling_area=g5a, equity_capital=k3a, debt_non_banks=k3e, debt_banks=k3bc, equipment_exp=n5a,
+                              building_exp=n5b, labor_cost=n2a, material_cost=n2e, ft_employees=l1)
+
+
+## Transformation of categorical variables into factors
+
+#perform$Year <- factor(perform$Year)
+#perform$Panelid <- factor(perform$Panelid)
+perform$region <- factor(perform$region)
+perform$main_market <- factor(perform$main_market)
+perform$Certification <- factor(perform$Certification)
+perform$web_site <- factor(perform$web_site)
+
+#perform$region <- recode_factor(perform$region, "1"="Littoral", "2"="Centre", "3"="West", "4"="Kribi")
+```
+
+```{r}
+# Missing rate calculation
+
+# loading library
+library('dplyr')
+#library('tidyverse')
+# define the missing rate function
+
+missing_rate <- function(df){
+# calculate missing rate and transpose the DataFrame
+rate <-t( df %>% summarize_all(funs(sum(is.na(.)) / length(.))))
+# rename the column
+colnames(rate)[1] <- "missing_rate"
+print(rate)
+}
+#x
+missing_rate(perform)
+
+```
+
+```{r}
+# Transformation of data
+
+perform$an_sales[perform$an_sales==0] <- 1
+perform$lan_sales <- log(perform$an_sales)
+
+perform$national_sales[perform$national_sales <= 69 ] <- 70
+perform$national_sales[perform$national_sales == "" ] <- 80
+
+perform$debt_non_banks[perform$debt_non_banks==0] <- 1
+perform$ldebt_non_banks <- log(perform$debt_non_banks)
+
+perform$an_capital[perform$an_capital==0] <- 1
+perform$lan_capital <- log(perform$an_capital)
+
+perform$debt_banks[perform$debt_banks==0] <- 1
+perform$ldebt_banks <- log(perform$debt_banks)
+
+perform$equity_capital[perform$equity_capital==0] <- 1
+perform$lequity_capital <- log(perform$equity_capital)
+
+perform$selling_area[perform$selling_area==0] <- 1
+perform$lselling_area <- log(perform$selling_area)
+
+perform$equipment_exp[perform$equipment_exp==0] <- 1
+perform$lequipment_exp <- log(perform$equipment_exp)
+
+perform$building_exp[perform$building_exp==0] <- 1
+perform$lbuilding_exp <- log(perform$building_exp)
+
+perform$labor_cost[perform$labor_cost==0] <- 1
+perform$llabor_cost <- log(perform$labor_cost)
+
+perform$material_cost[perform$material_cost<=0] <- 1
+perform$lmaterial_cost <- log(perform$material_cost)
+
+perform$ft_employees[perform$ft_employees==0] <- 1
+perform$lft_employees <- log(perform$ft_employees)
+```
+
+# Descriptive Statistics
+
+```{r}
+## Missing values visualization
+
+library(Amelia)
+#Then, use the missmap function to plot the missing value map
+missmap(perform, main="Missing Map before processing data")
+
+```
+
+```{r}
+## Analysis of the Annual sales "an_sales"
+
+#We will create visualizations to analyze an_sales. We will plot a histogram and then we will proceed to examine this data using a density plot
+ 
+ summary(perform$an_sales)
+ hist(perform$an_sales,
+  col="#660033",
+  main="Annual sales before transformation",
+  xlab="an_sales Class",
+  ylab="Frequency",
+  labels=TRUE)
+
+# plot(density(perform$vente_an),
+#    col="yellow",
+#    main="Density plot for vente_an before transformation of data",
+#    xlab="vente_an Class",
+#    ylab="Density")
+ #polygon(density(perform$vente_an),
+ #       col="#ccff66")
+
+```
+
+```{r}
+## Analysis of the Annual vente_an
+
+#We will create visualizations to analyze vente_an. We will plot a histogram and then we will proceed to examine this data using a density plot
+ 
+ summary(perform$lan_sales)
+ hist(perform$lan_sales,
+  col="#660033",
+  main="Annual sales after transformation",
+  xlab="lan_sales Class",
+  ylab="Frequency",
+  labels=TRUE)
+
+# plot(density(perform$lvente_an),
+#    col="yellow",
+#    main="Density Plot for lvente_an after transformation data",
+#    xlab="lvente_an Class",
+#    ylab="Density")
+# polygon(density(perform$lvente_an),
+#        col="#ccff66")
+
+```
+
+```{r}
+## Analysis of the Annual capital
+
+#We will create visualizations to analyze capital We will plot a histogram and then we will proceed to examine this data using a density plot
+ 
+ summary(perform$an_capital)
+ hist(perform$an_capital,
+  col="#660033",
+  main="Histogram for 'an_capital' before transformation of data",
+  xlab="an_capital Class",
+  ylab="Frequency",
+  labels=TRUE)
+
+ plot(density(perform$an_capital),
+    col="yellow",
+    main="Density Plot for 'an_capital' before transformation of data",
+    xlab="an_capital Class",
+    ylab="Density")
+ polygon(density(perform$an_capital ),
+        col="#ccff66")
+
+```
+
+```{r}
+## Analysis of the Annual capital
+
+#We will create visualizations to analyze capital We will plot a histogram and then we will proceed to examine this data using a density plot
+ 
+ summary(perform$lan_capital)
+ hist(perform$lan_capital,
+  col="#660033",
+  main="Histogram for 'an_capital' after transformation of data",
+  xlab="lan_capital Class",
+  ylab="Frequency",
+  labels=TRUE)
+
+# plot(density(perform$lcapital),
+#    col="yellow",
+#    main="Density Plot for capital after transformation of data",
+#    xlab="lcapital Class",
+#    ylab="Density")
+# polygon(density(perform$lcapital ),
+#        col="#ccff66")
+```
+
+```{r}
+## variable sector Visualization
+#par(mfrow =c (1,2))
+a=table(perform$secteur)
+barplot(a,main="Sample by sector",
+       ylab="Count",
+       xlab="secteur",
+       col=rainbow(2),
+       legend=rownames(a))
+ 
+pct=round(a/sum(a)*100)
+lbs=paste(c("Manufacturing","Other services","Retail services")," ",pct,"%",sep=" ")
+library(plotrix)
+pie3D(a,labels=lbs,main="Sample by sector")
+```
+
+```{r}
+## variable Certification Visualization
+#par(mfrow =c (1,2))
+a=table(perform$Certification)
+barplot(a,main="Sample by Certification",
+       ylab="Count",
+       xlab="Certification",
+       col=rainbow(2),
+       legend=rownames(a))
+ 
+pct=round(a/sum(a)*100)
+lbs=paste(c("1"="Yes","2"="No","3"="In process")," ",pct,"%",sep=" ")
+library(plotrix)
+pie3D(a,labels=lbs,main="Sample by Certification")
+```
+
+```{r}
+## variable website Visualization
+#par(mfrow =c (1,2))
+a=table(perform$web_site)
+barplot(a,main="Sample by website",
+       ylab="Count",
+       xlab="web_site",
+       col=rainbow(2),
+       legend=rownames(a))
+ 
+pct=round(a/sum(a)*100)
+lbs=paste(c("1"="Yes","2"="No")," ",pct,"%",sep=" ")
+library(plotrix)
+pie3D(a,labels=lbs,main="Sample by website")
+```
+
+```{r}
+## variable region Visualization
+#par(mfrow =c (1,2))
+a=table(perform$region)
+barplot(a,main="Sample by region",
+       ylab="Count",
+       xlab="region",
+       col=rainbow(2),
+       legend=rownames(a))
+ 
+pct=round(a/sum(a)*100)
+lbs=paste(c("1"="Littoral","2"="Centre","3"="West","4"="South")," ",pct,"%",sep=" ")
+library(plotrix)
+pie3D(a,labels=lbs,main="Sample by region")
+```
+
+```{r}
+## variable marche_principal Visualization
+#par(mfrow =c (1,2))
+a=table(perform$main_market)
+barplot(a,main="Sample by main market",
+       ylab="Count",
+       xlab="main_market",
+       col=rainbow(2),
+       legend=rownames(a))
+ 
+pct=round(a/sum(a)*100)
+lbs=paste(c("1"="International","2"="National","3"="Local")," ",pct,"%",sep=" ")
+library(plotrix)
+pie3D(a,labels=lbs,main="Sample by main market")
+```
+
+```{r}
+library(ggplot2)
+
+perform$main_market <-recode_factor(perform$main_market, "1"="International", "2"="National","3"="Local")
+perform$Certification <- recode_factor(perform$Certification, "1"="Yes", "2"="No", "3"="In process")
+perform$region <- recode_factor(perform$region, "1"="Littoral", "2"="Center", "3"="West","4"="South")
+perform$web_site <- recode_factor(perform$web_site, "1"="yes", "2"="No")
+```
+
+```{r}
+#To examine more details about the relationship between the age and survival rate, one can use a boxplot
+
+boxplot(perform$lan_sales ~ perform$Certification)
+```
+
+```{r}
+#To examine more details about the relationship between the age and survival rate, one can use a boxplot
+
+boxplot(perform$lan_sales ~ perform$region) 
+```
+
+```{r}
+#To examine more details about the relationship between the age and survival rate, one can use a boxplot
+
+boxplot(perform$lan_sales ~ perform$web_site) 
+```
+
+```{r}
+#To examine more details about the relationship between the age and survival rate, one can use a boxplot
+
+boxplot(perform$lan_sales ~ perform$main_market) 
+```
+
+```{r}
+
+ggplot(data = perform, aes(x = main_market, y = lan_sales )) + 
+    geom_boxplot(aes(fill = Certification)) + ggtitle("lan_sales ~ main_market") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(data = perform, aes(x = region, y = lan_sales )) + 
+    geom_boxplot(aes(fill = Certification)) + ggtitle("lan_sales ~ region") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(data = perform, aes(x = Certification, y = lan_sales )) + 
+    geom_boxplot(aes(fill = region)) + ggtitle("lan_sales ~ Certification") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+```
+
+```{r}
+ggplot(data = perform, aes(x = region, y = lan_sales )) + 
+    geom_boxplot(aes(fill = Certification)) + ggtitle("lan_sales ~ region") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+## summary of the data
+summary(perform)
+```
+
+```{r}
+## Standard deviation calculation
+sd(perform$lan_sales)
+sd(perform$mv_experience,na.rm = TRUE)
+sd(perform$main_product,na.rm = TRUE)
+sd(perform$national_sales,na.rm = TRUE)
+sd(perform$export_sales,na.rm = TRUE)
+sd(perform$d_material_supplies,na.rm = TRUE)
+sd(perform$f_material_supplies,na.rm = TRUE)
+sd(perform$firm_size,na.rm = TRUE)
+sd(perform$working_hours,na.rm = TRUE)
+sd(perform$building_owned,na.rm = TRUE)
+sd(perform$building_rented,na.rm = TRUE)
+sd(perform$lselling_area,na.rm = TRUE)
+sd(perform$lan_capital,na.rm = TRUE)
+sd(perform$lequity_capital,na.rm = TRUE)
+sd(perform$ldebt_non_banks,na.rm = TRUE)
+sd(perform$ldebt_banks,na.rm = TRUE)
+sd(perform$lequipment_exp,na.rm = TRUE)
+sd(perform$lbuilding_exp,na.rm = TRUE)
+sd(perform$llabor_cost,na.rm = TRUE)
+sd(perform$lcout_materiel,na.rm = TRUE)
+sd(perform$lemplyer_perm,na.rm = TRUE)
+```
+
+```{r}
+## Descriptive statistics of qualitative variables
+table(perform$region)
+table(perform$region) / nrow(perform)
+
+table(perform$Certification)
+table(perform$Certification) / nrow(perform)
+
+table(perform$web_site)
+table(perform$web_site) / nrow(perform)
+
+table(perform$main_market)
+table(perform$main_market) / nrow(perform)
+
+```
+
+# Stochastic frontier analysis
+
+```{r}
+## Filter data according to business sectors
+perform_1M =perform[perform$secteur == "Manufacturing",]
+perform_1O =perform[perform$secteur == "Other services",]
+perform_1R =perform[perform$secteur == "Retail services",]
+
+
+```
+
+```{r}
+## Code of stochastic frontier estimation (general model)
+library( "plm" )
+library(frontier)
+
+riceTimeInv <- pdata.frame( perform, c( "Panelid", "Year" ) )
+# Error Components Frontier (Battese & Coelli 1992)
+# with time-invariant efficiencies
+riceTimeInv <- sfa( log( an_sales ) ~ log( ft_employees ) + log( an_capital ) + log(equipment_exp ),
+data = perform )
+summary( riceTimeInv )
+
+```
+
+```{r}
+# Add data set with information about its panel structure
+
+library( "plm" )
+library(frontier)
+
+riceTimeInvO <- pdata.frame( perform_1O, c( "Panelid", "Year" ) )
+# Error Components Frontier (Battese & Coelli 1992)
+# with time-invariant efficiencies
+riceTimeInvO <- sfa( log( an_sales ) ~ log( ft_employees ) + log( an_capital ) + log(equipment_exp ),
+data = perform_1O )
+summary( riceTimeInvO )
+
+```
+
+```{r}
+# Add data set with information about its panel structure
+
+library( "plm" )
+library(frontier)
+
+riceTimeInvR <- pdata.frame( perform_1R, c( "Panelid", "Year" ) )
+# Error Components Frontier (Battese & Coelli 1992)
+# with time-invariant efficiencies
+riceTimeInvR <- sfa( log( an_sales ) ~ log( ft_employees ) + log( an_capital ) + log(equipment_exp ),
+data = perform_1R )
+summary( riceTimeInvR )
+
+```
+
+```{r}
+# Add data set with information about its panel structure
+
+library( "plm" )
+library(frontier)
+
+riceTimeInvM <- pdata.frame( perform_1M, c( "Panelid", "Year" ) )
+# Error Components Frontier (Battese & Coelli 1992)
+# with time-invariant efficiencies
+riceTimeInvM <- sfa( log( an_sales ) ~ log( ft_employees ) + log( an_capital ) + log(equipment_exp ),
+data = perform_1M )
+summary( riceTimeInvM )
+
+```
+
+# Stepwise Selection model
+
+```{r}
+## Code of stepwise selection model
+library(olsrr)
+model<- lm(lan_sales~region+Certification+main_product+national_sales+d_material_supplies+main_market+firm_size+building_owned+lan_capital+lequity_capital+ldebt_banks+lequipment_exp+lft_employees+llabor_cost+lmaterial_cost+lbuilding_exp+ldebt_non_banks+working_hours+f_material_supplies+export_sales+web_site ,data=perform)
+Bothfit.p<-ols_step_both_p(model,pent=0.05,prem =.05)
+Bothfit.p
+```
+
+# Selected model
+
+Following the previous result, the selected model is the following:
+
+lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site
+
+## Bivarial analysis of selected variables
+
+```{r}
+## Correlation matrix of selected variables
+MV <- subset(perform, select=c(lan_sales,lan_capital,llabor_cost,lft_employees ,lequipment_exp,lmaterial_cost))
+mcor  <- cor(MV, use = "complete.obs")
+mcor
+
+```
+
+```{r}
+## Correlation matrix plot
+library(corrplot)
+corrplot(mcor, type="upper", order="hclust", tl.col="black", tl.srt=45)
+
+```
+
+```{r}
+
+qplot(lan_capital , lan_sales, data=perform)+ aes(colour = Certification) + ggtitle("Sales based on capital") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+```
+
+```{r}
+qplot(lan_capital , lan_sales, data=perform)+ aes(colour = region) + ggtitle("Sales based on capital") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+```
+
+```{r}
+qplot(lft_employees , lan_sales, data=perform)+ aes(colour = region) + ggtitle(" lan_sales ~ lft_employees") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+qplot(lmaterial_cost , lan_sales, data=perform)+ aes(colour = Certification) + ggtitle("Sales based on cost of material") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+qplot(lequipment_exp , lan_sales, data=perform)+ aes(colour = Certification) + ggtitle("Sales based on the purchase of equipment") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+qplot(lequipment_exp , lan_sales, data=perform)+ aes(colour = region) + ggtitle("Sales based on the purchase of equipment") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+qplot(region , lan_sales, data=perform)+ aes(colour = Certification) + ggtitle("lan_sales ~ region") +
+theme(legend.position = "bottom",
+legend.title = element_text(face="bold"),
+axis.title.x = element_text(face="italic"),
+plot.title = element_text(colour = "purple",size = rel(1.5)))
+
+```
+
+```{r}
+## In addition to oneway.test, a standard function, aov, is used for the ANOVA analysis
+ FEc.aov = aov(perform$lan_sales ~ perform$Certification)
+ summary(FEc.aov)
+ 
+
+```
+
+```{r}
+ FEc_posthoc =TukeyHSD(FEc.aov)
+ FEc_posthoc
+#Further, we can visualize the differences in mean level with a plot function:
+ plot( FEc_posthoc)
+ 
+
+```
+
+```{r}
+## In addition to oneway.test, a standard function, aov, is used for the ANOVA analysis:
+
+ FEr.aov = aov(perform$lan_sales ~ perform$region)
+ summary(FEr.aov)
+ 
+```
+
+```{r}
+ FEr_posthoc =TukeyHSD(FEr.aov)
+ FEr_posthoc
+#Further, we can visualize the differences in mean level with a plot function:
+ plot( FEr_posthoc)
+
+```
+
+```{r}
+## Next, we use an interaction plot to characterize the relationship between variables:
+
+interaction.plot(perform$region, perform$Certification, perform$lan_sales, type="b",col=c(1:3),leg.bty="o", leg.bg="beige", lwd=2, pch=c(18,24,22), xlab="region", ylab="lan_sales", main="Interaction Plot")
+
+```
+
+```{r}
+##  We then perform a two-way ANOVA on perform_1 with a combination of the region and certification factors:
+ mpg_anova2 = aov(perform$lan_sales~(perform$region)*(perform$Certification))
+ summary(mpg_anova2)
+
+```
+
+# Estimation
+
+```{r}
+## Test homoscedasticity in panel data using R-studio
+# Packages~ lmtest,plm
+#Step1: pdata=pdata.frame(datafilename,index=C("firm","year"))
+#Step2: bptest(invest~value+capital,data=pdata,studentize=F)  bptest:Breusch pagan test
+#H0: There is homoscedasticity
+#p-value is less than 5%
+library(lmtest)
+library(plm)
+bptest(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data=perform,studentize=F)
+
+# Conclusion: (p-value < 0.05) There is heteroscedasticity
+```
+
+```{r}
+## Test for individual and time effect for Panel data:
+# Model: Yit = u + bXit + ai + vt + uit ; ai = 0: 
+#individual effect, vt = 0: time effect
+plmtest(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data=perform,effect = "twoways",type = "ghm")
+# H0: No significant individual and time effects
+# H1: significant individual and time effects
+
+# Conclusion: (p-value > 0.05) No significant individual and time effects
+```
+
+```{r}
+## Test for individual and time effect for Panel data
+# Model: Yit = u + bXit + ai + vt + uit ; ai = 0: 
+#individual effect, vt = 0: time effect
+plmtest(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data=perform,effect = "time",type = "kw")
+# H0: No significant individual and time effects
+# H1: significant individual and time effects
+
+# Conclusion: (p-value > 0.05) No significant individual and time effects
+```
+
+```{r}
+# Model: Yit = u + bXit + ai + vt + uit ; ai = 0: 
+#individual effect, vt = 0: time effect
+plmtest(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data=perform,effect = "individual",type = "kw")
+# H0: No significant individual and time effects
+# H1: significant individual and time effects
+
+# Conclusion: (p-value > 0.05) No significant individual and time effects
+```
+
+```{r}
+## Heterogeineity across Companies
+library(foreign)
+library(gplots)
+library(plm)
+pdata=pdata.frame(perform,index=c("Panelid","Year"))
+
+plotmeans(lan_sales ~ Panelid, main="Heterogeineity across Companies", data=pdata)
+
+```
+
+```{r}
+## Heterogeineity across Year
+plotmeans(lan_sales ~ Year, main="Heterogeineity across Year", data=pdata)
+
+```
+
+```{r}
+## LSDV estimation
+library(foreign)
+fixed.dum <-lm(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site + factor(Panelid) - 1, data=pdata)
+summary(fixed.dum)
+
+```
+
+```{r}
+## LSDV estimation
+library(foreign)
+fixed.dumy <-lm(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site + factor(Year) - 1, data=pdata)
+summary(fixed.dumy)
+
+```
+
+```{r}
+## Between effect method
+library(plm)
+pdata=pdata.frame(perform,index=c("Panelid","Year"))
+
+betmethod=plm(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data = pdata,model  = "between")
+summary(betmethod)
+```
+
+```{r}
+## Fixed effect method
+library(plm)
+pdata=pdata.frame(perform,index=c("Panelid","Year"))
+
+femethod=plm(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site,data = pdata,model  = "within")
+summary(femethod)
+```
+
+```{r}
+## Fixed effect method residual histogram
+hist(resid(femethod), col = "grey",main="")
+
+```
+
+```{r}
+## Random effect method
+library(plm)
+pdata=pdata.frame(perform,index=c("Panelid","Year"))
+
+remethod=plm(lan_sales ~ lan_capital+llabor_cost+lft_employees+lmaterial_cost+lequipment_exp+Certification+region+main_market+web_site, data = pdata, model = "random")
+
+summary(remethod)
+```
+
+```{r}
+## Fixed effect method residual histogram
+hist(resid(remethod), col = "grey",main="")
+
+```
+
+# Use statistical test(s) to choose the best model
+
+```{r}
+## Hausman test which is usefull to choose between fixed effect model and random effect model
+#Step1:Store the outcome of fixed effect model
+#Step2:Store the outcome of random effect model
+#Step3: phtest(fixed effect model,random effect model)
+#H0:Random effect model is consistent
+#H1:fixed effect model is consistent
+library(plm)
+phtest(femethod,remethod)   #Here we use p-value to choose
+
+# Conclusion: (p-value < 0.05)fixed effect model is consistent
+```
