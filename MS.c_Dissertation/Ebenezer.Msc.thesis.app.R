@@ -1,7 +1,7 @@
 ##############################################################################################
 # Predictive modelling of the performance of Cameroonian companies was carried out as part,  #
 # of the master's thesis in Mathematical Modelling for Economics and Finance as part of the  #
-# CETIC project at the École Normale Supérieure Polytechnique of Yaoundé.                    #
+# CETIC project at the National Advanced School of Engineering of Yaoundé.                    #
 #                                                                                            #
 # Ebenezer Bediam Nonbo(1*), Georges Nguefack Tsague(2), Desire Avom(3)                      #
 # (1*)CETIC, National Advanced School of Engineering of Yaoundé, University of Yaoundé I     #
